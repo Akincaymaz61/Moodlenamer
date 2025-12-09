@@ -18,18 +18,18 @@ type SongItemProps = {
   onPlay: (title: string) => void;
   onRename: (song: Song) => void;
   isRenaming?: boolean;
-  isUploading?: boolean;
+  isGenerating?: boolean;
 };
 
 const albumArt = PlaceHolderImages.find(img => img.id === 'album-art');
 
-const SongItem = memo(function SongItem({ song, isPlaying, onPlay, onRename, isRenaming, isUploading }: SongItemProps) {
-  const isBusy = isRenaming || isUploading;
+const SongItem = memo(function SongItem({ song, isPlaying, onPlay, onRename, isRenaming, isGenerating }: SongItemProps) {
+  const isBusy = isRenaming || isGenerating;
 
   return (
     <div className={`flex items-center gap-4 p-2 rounded-lg transition-colors ${isBusy ? 'opacity-50 cursor-not-allowed' : 'hover:bg-secondary/50'}`}>
       <div className="relative w-12 h-12 shrink-0">
-        {isUploading ? (
+        {isGenerating ? (
             <div className="w-12 h-12 rounded-md bg-secondary flex items-center justify-center">
                 <Music className="w-6 h-6 text-muted-foreground animate-pulse" />
             </div>
@@ -48,11 +48,11 @@ const SongItem = memo(function SongItem({ song, isPlaying, onPlay, onRename, isR
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className={`font-semibold truncate text-card-foreground ${isUploading ? 'italic text-muted-foreground' : ''}`}>{song.title}</p>
-        <p className={`text-sm truncate ${isUploading ? 'italic text-muted-foreground' : 'text-muted-foreground'}`}>{song.artist}</p>
+        <p className={`font-semibold truncate text-card-foreground ${isGenerating ? 'italic text-muted-foreground' : ''}`}>{song.title}</p>
+        <p className={`text-sm truncate ${isGenerating ? 'italic text-muted-foreground' : 'text-muted-foreground'}`}>{song.artist}</p>
       </div>
       <div className="flex items-center gap-1">
-        {isRenaming || isUploading ? (
+        {isRenaming || isGenerating ? (
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
         ) : (
           <>

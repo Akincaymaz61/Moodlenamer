@@ -1,30 +1,8 @@
 'use server';
 
-import { refreshPlaylistWithNewSongs } from '@/ai/flows/refresh-playlist-with-new-songs';
+import { generateRealisticSongTitles } from '@/ai/flows/generate-realistic-song-titles';
 import { renameSong } from '@/ai/flows/rename-song';
-import { suggestSongTitleFromAudio } from '@/ai/flows/suggest-song-title-from-audio';
 import { z } from 'zod';
-
-const RefreshSongsInput = z.object({
-  count: z.number().min(1).max(50),
-});
-
-export async function refreshSongs(input: z.infer<typeof RefreshSongsInput>) {
-  try {
-    const validatedInput = RefreshSongsInput.parse(input);
-    const result = await refreshPlaylistWithNewSongs(validatedInput);
-    if (result?.songs) {
-      return { success: true, songs: result.songs };
-    }
-    return { success: false, error: 'Failed to get a valid response from the AI.' };
-  } catch (error) {
-    console.error('Error refreshing songs:', error);
-    if (error instanceof z.ZodError) {
-      return { success: false, error: 'Invalid input provided for refreshing songs.' };
-    }
-    return { success: false, error: 'An unexpected error occurred while refreshing songs.' };
-  }
-}
 
 const RenameSongInput = z.object({
   title: z.string(),
@@ -48,24 +26,15 @@ export async function renameExistingSong(input: z.infer<typeof RenameSongInput>)
   }
 }
 
-
-const SuggestSongFromAudioInput = z.object({
-  audioDataUri: z.string(),
-});
-
-export async function suggestSongFromAudio(input: z.infer<typeof SuggestSongFromAudioInput>) {
+export async function generateSingleSong() {
   try {
-    const validatedInput = SuggestSongFromAudioInput.parse(input);
-    const result = await suggestSongTitleFromAudio(validatedInput);
-     if (result?.title && result?.artist) {
-      return { success: true, song: result };
+    const result = await generateRealisticSongTitles({ count: 1 });
+    if (result?.songs && result.songs.length > 0) {
+      return { success: true, song: result.songs[0] };
     }
-    return { success: false, error: 'Failed to get a valid suggestion from the AI.' };
+    return { success: false, error: 'Failed to get a valid response from the AI.' };
   } catch (error) {
-    console.error('Error suggesting song from audio:', error);
-    if (error instanceof z.ZodError) {
-      return { success: false, error: 'Invalid input for audio suggestion.' };
-    }
-    return { success: false, error: 'An unexpected error occurred while suggesting the song name.' };
+    console.error('Error generating single song:', error);
+    return { success: false, error: 'An unexpected error occurred while generating a song.' };
   }
 }
