@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { memo } from 'react';
-import { Play } from 'lucide-react';
+import { Play, Loader2 } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,13 +16,14 @@ type SongItemProps = {
   song: Song;
   isPlaying: boolean;
   onPlay: (title: string) => void;
+  isUploading?: boolean;
 };
 
 const albumArt = PlaceHolderImages.find(img => img.id === 'album-art');
 
-const SongItem = memo(function SongItem({ song, isPlaying, onPlay }: SongItemProps) {
+const SongItem = memo(function SongItem({ song, isPlaying, onPlay, isUploading }: SongItemProps) {
   return (
-    <div className="flex items-center gap-4 p-2 rounded-lg transition-colors hover:bg-secondary/50">
+    <div className={`flex items-center gap-4 p-2 rounded-lg transition-colors ${isUploading ? 'opacity-50' : 'hover:bg-secondary/50'}`}>
       {albumArt ? (
         <Image
           src={albumArt.imageUrl}
@@ -39,23 +40,27 @@ const SongItem = memo(function SongItem({ song, isPlaying, onPlay }: SongItemPro
         <p className="font-semibold truncate text-card-foreground">{song.title}</p>
         <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => onPlay(song.title)}
-        aria-label={isPlaying ? `Pause ${song.title}` : `Play ${song.title}`}
-        className="text-primary hover:text-primary"
-      >
-        {isPlaying ? (
-          <div className="flex items-end gap-0.5 h-4">
-            <span className="w-1 h-2 bg-primary animate-wave-2"/>
-            <span className="w-1 h-4 bg-primary animate-wave-1"/>
-            <span className="w-1 h-3 bg-primary animate-wave-3"/>
-          </div>
-        ) : (
-          <Play className="h-5 w-5 fill-current" />
-        )}
-      </Button>
+      {isUploading ? (
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+      ) : (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onPlay(song.title)}
+          aria-label={isPlaying ? `Pause ${song.title}` : `Play ${song.title}`}
+          className="text-primary hover:text-primary"
+        >
+          {isPlaying ? (
+            <div className="flex items-end gap-0.5 h-4">
+              <span className="w-1 h-2 bg-primary animate-wave-2"/>
+              <span className="w-1 h-4 bg-primary animate-wave-1"/>
+              <span className="w-1 h-3 bg-primary animate-wave-3"/>
+            </div>
+          ) : (
+            <Play className="h-5 w-5 fill-current" />
+          )}
+        </Button>
+      )}
     </div>
   );
 });

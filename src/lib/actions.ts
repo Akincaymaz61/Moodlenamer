@@ -1,6 +1,7 @@
 'use server';
 
 import { refreshPlaylistWithNewSongs } from '@/ai/flows/refresh-playlist-with-new-songs';
+import { suggestSongTitle } from '@/ai/flows/suggest-song-title';
 import { z } from 'zod';
 
 const RefreshSongsInput = z.object({
@@ -21,5 +22,26 @@ export async function refreshSongs(input: z.infer<typeof RefreshSongsInput>) {
       return { success: false, error: 'Invalid input provided for refreshing songs.' };
     }
     return { success: false, error: 'An unexpected error occurred while refreshing songs.' };
+  }
+}
+
+const SuggestTitleInput = z.object({
+  audioDataUri: z.string(),
+});
+
+export async function getSuggestedTitle(input: z.infer<typeof SuggestTitleInput>) {
+  try {
+    const validatedInput = SuggestTitleInput.parse(input);
+    const result = await suggestSongTitle(validatedInput);
+    if (result?.title && result?.artist) {
+      return { success: true, song: result };
+    }
+    return { success: false, error: 'Failed to get a valid suggestion from the AI.' };
+  } catch (error) {
+    console.error('Error suggesting title:', error);
+    if (error instanceof z.ZodError) {
+      return { success: false, error: 'Invalid input provided for title suggestion.' };
+    }
+    return { success: false, error: 'An unexpected error occurred while suggesting a title.' };
   }
 }
