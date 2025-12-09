@@ -21,6 +21,10 @@ export async function getNewSongName(input: z.infer<typeof RenameSongInput>) {
     if (error instanceof z.ZodError) {
       return { success: false, error: 'Invalid input provided.' };
     }
-    return { success: false, error: 'An unexpected error occurred.' };
+    // Checking for a specific error message from Genkit/Google AI
+    if (error instanceof Error && error.message.includes('429')) {
+       return { success: false, error: 'AI service is busy. Please try again in a moment.' };
+    }
+    return { success: false, error: 'An unexpected error occurred while contacting the AI service.' };
   }
 }
