@@ -29,14 +29,17 @@ export async function renameSong(input: RenameSongInput): Promise<RenameSongOutp
 const prompt = ai.definePrompt({
   name: 'renameSongPrompt',
   input: {schema: RenameSongInputSchema},
-  output: {schema: RenameSongOutputSchema},
   prompt: `You are a creative genius who is an expert at naming music tracks. You will be given an original filename for an audio file.
   
   Your task is to come up with a completely new, creative, and plausible-sounding song title and artist name. The names should sound like they could be real.
 
   Original Filename: "{{title}}"
 
-  Generate a new song title and a new artist name.`,
+  Generate a new song title and a new artist name.
+
+  Respond with a JSON object with "title" and "artist" keys.
+  Example: {"title": "Cosmic Drift", "artist": "Starlight Bloom"}
+  `,
 });
 
 const renameSongFlow = ai.defineFlow(
@@ -47,6 +50,12 @@ const renameSongFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    if (typeof output !== 'string') {
+      // It might already be an object if the model is smart enough.
+      return output as RenameSongOutput;
+    }
+    // Clean the string to ensure it is valid JSON
+    const jsonString = output.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(jsonString);
   }
 );

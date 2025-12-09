@@ -37,12 +37,12 @@ export async function generateRealisticSongTitles(
 const prompt = ai.definePrompt({
   name: 'generateRealisticSongTitlesPrompt',
   input: {schema: GenerateRealisticSongTitlesInputSchema},
-  output: {schema: GenerateRealisticSongTitlesOutputSchema},
   prompt: `You are a music expert, skilled at creating realistic-sounding song titles and artist names.
 
   Generate {{count}} unique song titles and artist names. Ensure that the titles and names sound believable and could plausibly exist in the modern music landscape.
 
-  Format the output as a JSON array of objects, each with a "title" and "artist" field.
+  Format the output as a JSON object with a "songs" key, which contains an array of objects, each with a "title" and "artist" field.
+  Example: {"songs": [{"title": "Echoes in Rain", "artist": "Neon Drift"}]}
   `,
 });
 
@@ -54,6 +54,12 @@ const generateRealisticSongTitlesFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+     if (typeof output !== 'string') {
+      // It might already be an object if the model is smart enough.
+      return output as GenerateRealisticSongTitlesOutput;
+    }
+    // Clean the string to ensure it is valid JSON
+    const jsonString = output.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(jsonString);
   }
 );
