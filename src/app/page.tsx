@@ -1,7 +1,25 @@
 import MusicPlayer from '@/app/components/music-player';
 import { Music2 } from 'lucide-react';
+import { generateRealisticSongTitles } from '@/ai/flows/generate-realistic-song-titles';
 
-export default function Home() {
+type Song = {
+  title: string;
+  artist: string;
+};
+
+export default async function Home() {
+  let initialSongs: Song[] = [];
+  // The initial fetch is no longer needed as users will upload their own songs.
+  // We keep the logic in case we want to pre-populate the list in the future.
+  // try {
+  //   const response = await generateRealisticSongTitles({ count: 5 });
+  //   if (response?.songs) {
+  //     initialSongs = response.songs;
+  //   }
+  // } catch (error) {
+  //   console.error("Failed to fetch initial songs:", error);
+  // }
+
   return (
     <div className="bg-background text-foreground">
       <main className="container mx-auto px-4 py-8 sm:py-12 md:py-16">
@@ -15,7 +33,7 @@ export default function Home() {
               <p className="text-muted-foreground">Your personal AI-powered song renamer</p>
             </div>
           </header>
-          <MusicPlayer initialSongs={[]} />
+          <MusicPlayer initialSongs={initialSongs} />
         </div>
       </main>
     </div>

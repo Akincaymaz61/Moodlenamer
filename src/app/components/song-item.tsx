@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { memo } from 'react';
-import { Play, Loader2, PenSquare } from 'lucide-react';
+import { Play, Loader2, PenSquare, Music } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,33 +18,41 @@ type SongItemProps = {
   onPlay: (title: string) => void;
   onRename: (song: Song) => void;
   isRenaming?: boolean;
+  isUploading?: boolean;
 };
 
 const albumArt = PlaceHolderImages.find(img => img.id === 'album-art');
 
-const SongItem = memo(function SongItem({ song, isPlaying, onPlay, onRename, isRenaming }: SongItemProps) {
-  const isBusy = isRenaming;
+const SongItem = memo(function SongItem({ song, isPlaying, onPlay, onRename, isRenaming, isUploading }: SongItemProps) {
+  const isBusy = isRenaming || isUploading;
 
   return (
     <div className={`flex items-center gap-4 p-2 rounded-lg transition-colors ${isBusy ? 'opacity-50 cursor-not-allowed' : 'hover:bg-secondary/50'}`}>
-      {albumArt ? (
-        <Image
-          src={albumArt.imageUrl}
-          alt={albumArt.description}
-          data-ai-hint={albumArt.imageHint}
-          width={48}
-          height={48}
-          className="rounded-md object-cover aspect-square"
-        />
-      ) : (
-        <Skeleton className="w-12 h-12 rounded-md" />
-      )}
+      <div className="relative w-12 h-12 shrink-0">
+        {isUploading ? (
+            <div className="w-12 h-12 rounded-md bg-secondary flex items-center justify-center">
+                <Music className="w-6 h-6 text-muted-foreground animate-pulse" />
+            </div>
+        ) : albumArt ? (
+          <Image
+            src={albumArt.imageUrl}
+            alt={albumArt.description}
+            data-ai-hint={albumArt.imageHint}
+            width={48}
+            height={48}
+            className="rounded-md object-cover aspect-square"
+          />
+        ) : (
+          <Skeleton className="w-12 h-12 rounded-md" />
+        )}
+      </div>
+
       <div className="flex-1 min-w-0">
-        <p className="font-semibold truncate text-card-foreground">{song.title}</p>
-        <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
+        <p className={`font-semibold truncate text-card-foreground ${isUploading ? 'italic text-muted-foreground' : ''}`}>{song.title}</p>
+        <p className={`text-sm truncate ${isUploading ? 'italic text-muted-foreground' : 'text-muted-foreground'}`}>{song.artist}</p>
       </div>
       <div className="flex items-center gap-1">
-        {isRenaming ? (
+        {isRenaming || isUploading ? (
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
         ) : (
           <>

@@ -2,6 +2,7 @@
 
 import { refreshPlaylistWithNewSongs } from '@/ai/flows/refresh-playlist-with-new-songs';
 import { renameSong } from '@/ai/flows/rename-song';
+import { suggestSongTitleFromAudio } from '@/ai/flows/suggest-song-title-from-audio';
 import { z } from 'zod';
 
 const RefreshSongsInput = z.object({
@@ -44,5 +45,27 @@ export async function renameExistingSong(input: z.infer<typeof RenameSongInput>)
       return { success: false, error: 'Invalid input provided for renaming song.' };
     }
     return { success: false, error: 'An unexpected error occurred while renaming the song.' };
+  }
+}
+
+
+const SuggestSongFromAudioInput = z.object({
+  audioDataUri: z.string(),
+});
+
+export async function suggestSongFromAudio(input: z.infer<typeof SuggestSongFromAudioInput>) {
+  try {
+    const validatedInput = SuggestSongFromAudioInput.parse(input);
+    const result = await suggestSongTitleFromAudio(validatedInput);
+     if (result?.title && result?.artist) {
+      return { success: true, song: result };
+    }
+    return { success: false, error: 'Failed to get a valid suggestion from the AI.' };
+  } catch (error) {
+    console.error('Error suggesting song from audio:', error);
+    if (error instanceof z.ZodError) {
+      return { success: false, error: 'Invalid input for audio suggestion.' };
+    }
+    return { success: false, error: 'An unexpected error occurred while suggesting the song name.' };
   }
 }
