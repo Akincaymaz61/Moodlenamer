@@ -88,10 +88,17 @@ export default {
             height: '0',
           },
         },
+        'music-wave': {
+          '0%, 100%': { transform: 'scaleY(0.5)', 'transform-origin': 'bottom' },
+          '50%': { transform: 'scaleY(1.5)', 'transform-origin': 'bottom' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'wave-1': 'music-wave 1.2s ease-in-out infinite',
+        'wave-2': 'music-wave 1.2s ease-in-out 0.2s infinite',
+        'wave-3': 'music-wave 1.2s ease-in-out 0.4s infinite',
       },
     },
   },
