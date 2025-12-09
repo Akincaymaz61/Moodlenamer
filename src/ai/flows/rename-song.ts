@@ -11,14 +11,14 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const RenameSongInputSchema = z.object({
-  title: z.string().describe('The current title of the song.'),
-  artist: z.string().describe('The current artist of the song.'),
+  title: z.string().describe('The current title of the song (or the original filename).'),
+  artist: z.string().describe('The current artist of the song (can be "Unknown").'),
 });
 export type RenameSongInput = z.infer<typeof RenameSongInputSchema>;
 
 const RenameSongOutputSchema = z.object({
-  title: z.string().describe('The suggested new song title.'),
-  artist: z.string().describe('The suggested new artist name.'),
+  title: z.string().describe('The suggested new creative song title.'),
+  artist: z.string().describe('The suggested new creative artist name.'),
 });
 export type RenameSongOutput = z.infer<typeof RenameSongOutputSchema>;
 
@@ -30,15 +30,13 @@ const prompt = ai.definePrompt({
   name: 'renameSongPrompt',
   input: {schema: RenameSongInputSchema},
   output: {schema: RenameSongOutputSchema},
-  prompt: `You are a creative music expert. You will be given a song title and artist name.
+  prompt: `You are a creative genius who is an expert at naming music tracks. You will be given an original filename for an audio file.
   
-  Your task is to come up with a completely new, creative, and plausible-sounding song title and artist name. Do not simply rephrase the existing ones.
+  Your task is to come up with a completely new, creative, and plausible-sounding song title and artist name. The names should sound like they could be real.
 
-  Original Song:
-  Title: "{{title}}"
-  Artist: "{{artist}}"
+  Original Filename: "{{title}}"
 
-  Generate a new title and artist.`,
+  Generate a new song title and a new artist name.`,
 });
 
 const renameSongFlow = ai.defineFlow(

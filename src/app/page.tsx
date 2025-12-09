@@ -1,13 +1,7 @@
 import MusicPlayer from '@/app/components/music-player';
 import { Music2 } from 'lucide-react';
 
-type Song = {
-  title: string;
-  artist: string;
-};
-
 export default async function Home() {
-  const initialSongs: Song[] = [];
   
   return (
     <div className="bg-background text-foreground">
@@ -18,11 +12,11 @@ export default async function Home() {
               <Music2 className="w-8 h-8 text-primary"/>
             </div>
             <div>
-              <h1 className="text-3xl sm:text-4xl font-bold font-headline tracking-tight">Groove Illusion</h1>
-              <p className="text-muted-foreground">Your personal AI-powered song namer</p>
+              <h1 className="text-3xl sm:text-4xl font-bold font-headline tracking-tight">AI MP3 Renamer</h1>
+              <p className="text-muted-foreground">Let AI rename your MP3 files automatically.</p>
             </div>
           </header>
-          <MusicPlayer initialSongs={initialSongs} />
+          <MusicPlayer />
         </div>
       </main>
     </div>
