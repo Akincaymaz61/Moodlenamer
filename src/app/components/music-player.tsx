@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useTransition, useRef } from 'react';
-import { RefreshCw, Search, Loader2, Upload } from 'lucide-react';
+import { RefreshCw, Search, Loader2 } from 'lucide-react';
 
 import SongItem from './song-item';
 import { Input } from '@/components/ui/input';
@@ -9,22 +9,25 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { refreshSongs, getSuggestedTitle } from '@/lib/actions';
+import { refreshSongs, renameExistingSong } from '@/lib/actions';
 import { useToast } from "@/hooks/use-toast";
 
 type Song = {
+  id: string;
   title: string;
   artist: string;
-  isUploading?: boolean;
+  isRenaming?: boolean;
 };
 
-export default function MusicPlayer({ initialSongs }: { initialSongs: Song[] }) {
+export default function MusicPlayer({ initialSongs }: { initialSongs: { title: string, artist: string }[] }) {
   const { toast } = useToast();
-  const [songs, setSongs] = useState<Song[]>(initialSongs);
+  
+  const initialSongsWithId = useMemo(() => initialSongs.map((song, index) => ({...song, id: `${song.title}-${index}`})), [initialSongs]);
+  
+  const [songs, setSongs] = useState<Song[]>(initialSongsWithId);
   const [searchTerm, setSearchTerm] = useState('');
   const [playingSongTitle, setPlayingSongTitle] = useState<string | null>(null);
   const [isRefreshing, startRefreshTransition] = useTransition();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePlay = (title: string) => {
     setPlayingSongTitle(currentTitle => (currentTitle === title ? null : title));
@@ -34,7 +37,7 @@ export default function MusicPlayer({ initialSongs }: { initialSongs: Song[] }) 
     startRefreshTransition(async () => {
       const result = await refreshSongs({ count: 20 });
       if (result.success && result.songs) {
-        setSongs(result.songs);
+        setSongs(result.songs.map((song, index) => ({ ...song, id: `new-${song.title}-${index}` })));
         setPlayingSongTitle(null);
         setSearchTerm('');
         toast({
@@ -51,58 +54,30 @@ export default function MusicPlayer({ initialSongs }: { initialSongs: Song[] }) 
     });
   };
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      const tempId = `uploading-${Date.now()}`;
-      
-      reader.onloadstart = () => {
-        setSongs(prev => [{ title: 'Uploading & Analyzing...', artist: file.name, isUploading: true }, ...prev]);
-      };
-
-      reader.onload = async (e) => {
-        const audioDataUri = e.target?.result as string;
-        
-        const result = await getSuggestedTitle({ audioDataUri });
-        
-        if (result.success && result.song) {
-          setSongs(prev => prev.map(s => s.isUploading ? { ...result.song, isUploading: false } : s));
-          toast({
-            title: "Song suggestion ready!",
-            description: `We've named it "${result.song.title}".`,
-          });
-        } else {
-          setSongs(prev => prev.filter(s => !s.isUploading));
-          toast({
-            variant: "destructive",
-            title: "Analysis Failed",
-            description: result.error || "Could not suggest a title for the song.",
-          });
-        }
-      };
-
-      reader.onerror = () => {
-        setSongs(prev => prev.filter(s => !s.isUploading));
-        toast({
-          variant: "destructive",
-          title: "Upload Failed",
-          description: "There was an error reading the file.",
-        });
-      };
-
-      reader.readAsDataURL(file);
-    }
-     // Reset file input to allow uploading the same file again
-    if(event.target) {
-      event.target.value = '';
+  const handleRename = async (songToRename: Song) => {
+    setSongs(prev => prev.map(s => s.id === songToRename.id ? { ...s, isRenaming: true } : s));
+    
+    const result = await renameExistingSong({ title: songToRename.title, artist: songToRename.artist });
+    
+    if (result.success && result.song) {
+      setSongs(prev => prev.map(s => 
+        s.id === songToRename.id 
+          ? { ...s, title: result.song.title, artist: result.song.artist, isRenaming: false } 
+          : s
+      ));
+      toast({
+        title: "Song Renamed!",
+        description: `"${songToRename.title}" is now "${result.song.title}".`,
+      });
+    } else {
+      setSongs(prev => prev.map(s => s.id === songToRename.id ? { ...s, isRenaming: false } : s));
+      toast({
+        variant: "destructive",
+        title: "Rename Failed",
+        description: result.error || "Could not rename the song.",
+      });
     }
   };
-
 
   const filteredSongs = useMemo(() => {
     if (!searchTerm) {
@@ -121,23 +96,6 @@ export default function MusicPlayer({ initialSongs }: { initialSongs: Song[] }) 
           <CardDescription>A list of AI-generated bangers</CardDescription>
         </div>
         <div className="flex items-center gap-2">
-            <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-                accept="audio/*"
-            />
-            <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleUploadClick}
-                disabled={isRefreshing}
-                aria-label="Upload a song"
-                className="text-muted-foreground hover:text-primary transition-colors"
-            >
-                <Upload className="h-5 w-5" />
-            </Button>
             <Button
                 variant="ghost"
                 size="icon"
@@ -175,20 +133,21 @@ export default function MusicPlayer({ initialSongs }: { initialSongs: Song[] }) 
         <ScrollArea className="h-[50vh]">
           {filteredSongs.length > 0 ? (
             <div className="p-2 sm:p-4 space-y-1">
-              {filteredSongs.map((song, index) => (
+              {filteredSongs.map((song) => (
                 <SongItem
-                  key={`${song.title}-${index}`}
+                  key={song.id}
                   song={song}
                   isPlaying={playingSongTitle === song.title}
                   onPlay={handlePlay}
-                  isUploading={song.isUploading}
+                  onRename={handleRename}
+                  isRenaming={song.isRenaming}
                 />
               ))}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-[40vh] text-center p-8 text-muted-foreground">
               <p className="font-semibold">No songs found.</p>
-              <p className="text-sm">Try a different search, refresh the playlist, or upload a song.</p>
+              <p className="text-sm">Try a different search or refresh the playlist.</p>
             </div>
           )}
         </ScrollArea>
