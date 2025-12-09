@@ -12,19 +12,29 @@ export async function getNewSongName(input: z.infer<typeof RenameSongInput>) {
   try {
     const validatedInput = RenameSongInput.parse(input);
     const result = await renameSongFlow(validatedInput);
+    
     if (result?.title && result?.artist) {
       return { success: true, song: result };
     }
-    return { success: false, error: 'Failed to get a valid suggestion from the AI.' };
-  } catch (error) {
-    console.error('Error getting new song name:', error);
+    
+    // This case handles if the AI returns a valid but empty response
+    return { success: false, error: 'AI failed to suggest a new name. Please try again.' };
+
+  } catch (error: any) {
+    console.error('Error in getNewSongName:', error);
+
+    // Propagate the actual error message from the AI service or Zod validation
+    const errorMessage = error.message || 'An unknown error occurred.';
+
     if (error instanceof z.ZodError) {
       return { success: false, error: 'Invalid input provided.' };
     }
-    // Checking for a specific error message from Genkit/Google AI for rate limiting
-    if (error instanceof Error && (error.message.includes('429') || error.message.includes('RESOURCE_EXHAUSTED'))) {
+    
+    if (errorMessage.includes('429') || errorMessage.includes('RESOURCE_EXHAUSTED')) {
        return { success: false, error: 'AI service is busy. Please try again in a moment.' };
     }
-    return { success: false, error: 'An unexpected error occurred while contacting the AI service.' };
+
+    // Return the specific error message to the client
+    return { success: false, error: `An unexpected error occurred while contacting the AI service: ${errorMessage}` };
   }
 }
