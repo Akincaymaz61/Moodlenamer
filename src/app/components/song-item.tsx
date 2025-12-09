@@ -1,68 +1,58 @@
 'use client';
 
-import Image from 'next/image';
 import { memo } from 'react';
-import { Loader2, Music, FileCheck2 } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Loader2, Music, FileCheck2, AlertCircle, Sparkles } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
-type Song = {
-  title: string;
-  artist: string;
-  originalFileName: string;
-  status: 'renaming' | 'renamed' | 'error';
-  newFullName?: string;
+type SongFile = {
+  id: string;
+  name: string;
+  selected: boolean;
+  status: 'idle' | 'renaming' | 'renamed' | 'error';
+  newName?: string;
+  error?: string;
 };
 
 type SongItemProps = {
-  song: Song;
+  file: SongFile;
+  onSelect: () => void;
 };
 
-const SongItem = memo(function SongItem({ song }: SongItemProps) {
-  const isBusy = song.status === 'renaming';
-  const isRenamed = song.status === 'renamed';
-  const albumArt = PlaceHolderImages.find(img => img.id === 'album-art');
+const SongItem = memo(function SongItem({ file, onSelect }: SongItemProps) {
+  const isBusy = file.status === 'renaming';
+  const isRenamed = file.status === 'renamed';
+  const hasError = file.status === 'error';
 
   return (
-    <div className={`flex items-center gap-4 p-2 rounded-lg transition-colors ${isBusy ? 'opacity-50 cursor-not-allowed' : 'hover:bg-secondary/50'}`}>
-      <div className="relative w-12 h-12 shrink-0">
-        {isBusy ? (
-            <div className="w-12 h-12 rounded-md bg-secondary flex items-center justify-center">
-                <Music className="w-6 h-6 text-muted-foreground animate-pulse" />
-            </div>
-        ) : albumArt ? (
-          <Image
-            src={albumArt.imageUrl}
-            alt={albumArt.description}
-            data-ai-hint={albumArt.imageHint}
-            width={48}
-            height={48}
-            className="rounded-md object-cover aspect-square"
-          />
-        ) : (
-          <Skeleton className="w-12 h-12 rounded-md" />
-        )}
+    <div 
+      className={`flex items-center gap-4 p-2 rounded-lg transition-colors cursor-pointer ${isBusy ? 'opacity-50' : 'hover:bg-secondary/50'}`}
+      onClick={onSelect}
+    >
+      <Checkbox
+          checked={file.selected}
+          onCheckedChange={onSelect}
+          aria-label={`Select ${file.name}`}
+          className="shrink-0"
+      />
+      <div className="shrink-0 w-8 h-8 rounded-md bg-secondary flex items-center justify-center">
+          {isRenamed ? <FileCheck2 className="w-5 h-5 text-green-500" /> 
+            : isBusy ? <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            : hasError ? <AlertCircle className="w-5 h-5 text-destructive" />
+            : <Music className="w-5 h-5 text-muted-foreground" />
+          }
       </div>
 
       <div className="flex-1 min-w-0">
-        {isBusy ? (
-          <>
-            <p className="font-semibold truncate text-muted-foreground italic">{song.title}</p>
-            <p className="text-sm truncate text-muted-foreground">{song.originalFileName}</p>
-          </>
-        ) : (
-          <>
-             <p className="font-semibold truncate text-card-foreground">{song.newFullName}</p>
-             <p className="text-sm truncate text-muted-foreground">Original: {song.originalFileName}</p>
-          </>
+        <p className="font-semibold truncate text-card-foreground">{file.name}</p>
+        {isRenamed && file.newName && (
+          <div className="flex items-center gap-1 text-sm text-green-400">
+            <Sparkles className="w-3 h-3" />
+            <p className="truncate">Renamed to: {file.newName}</p>
+          </div>
         )}
-      </div>
-      <div className="flex items-center gap-1 w-10 justify-center">
-        {isBusy ? (
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        ) : isRenamed ? (
-          <FileCheck2 className="h-5 w-5 text-green-500" />
-        ) : null}
+        {hasError && (
+            <p className="text-sm truncate text-destructive">{file.error || 'An unknown error occurred.'}</p>
+        )}
       </div>
     </div>
   );

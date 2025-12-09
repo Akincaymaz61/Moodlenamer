@@ -13,6 +13,7 @@ import {z} from 'genkit';
 
 const GenerateRealisticSongTitlesInputSchema = z.object({
   count: z.number().default(10).describe('The number of song titles to generate.'),
+  prompt: z.string().optional().describe('A prompt to guide the generation of song titles and artists.'),
 });
 export type GenerateRealisticSongTitlesInput = z.infer<typeof GenerateRealisticSongTitlesInputSchema>;
 
@@ -34,16 +35,22 @@ export async function generateRealisticSongTitles(
   return generateRealisticSongTitlesFlow(input);
 }
 
+const promptTemplate = `You are a music expert, skilled at creating realistic-sounding song titles and artist names.
+
+{{#if prompt}}
+You will follow this instruction to generate the song titles and artists: "{{prompt}}"
+{{/if}}
+
+Generate {{count}} unique song titles and artist names. Ensure that the titles and names sound believable and could plausibly exist in the modern music landscape.
+
+Format the output as a JSON object with a "songs" key, which contains an array of objects, each with a "title" and "artist" field.
+Example: {"songs": [{"title": "Echoes in Rain", "artist": "Neon Drift"}]}`;
+
+
 const prompt = ai.definePrompt({
   name: 'generateRealisticSongTitlesPrompt',
   input: {schema: GenerateRealisticSongTitlesInputSchema},
-  prompt: `You are a music expert, skilled at creating realistic-sounding song titles and artist names.
-
-  Generate {{count}} unique song titles and artist names. Ensure that the titles and names sound believable and could plausibly exist in the modern music landscape.
-
-  Format the output as a JSON object with a "songs" key, which contains an array of objects, each with a "title" and "artist" field.
-  Example: {"songs": [{"title": "Echoes in Rain", "artist": "Neon Drift"}]}
-  `,
+  prompt: promptTemplate,
 });
 
 const generateRealisticSongTitlesFlow = ai.defineFlow(
@@ -60,6 +67,11 @@ const generateRealisticSongTitlesFlow = ai.defineFlow(
     }
     // Clean the string to ensure it is valid JSON
     const jsonString = output.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(jsonString);
+    try {
+        return JSON.parse(jsonString);
+    } catch (e) {
+        console.error("Failed to parse AI response:", jsonString);
+        throw new Error("AI returned invalid JSON.");
+    }
   }
 );

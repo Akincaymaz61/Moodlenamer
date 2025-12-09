@@ -51,11 +51,14 @@ const renameSongFlow = ai.defineFlow(
   async input => {
     const {output} = await prompt(input);
     if (typeof output !== 'string') {
-      // It might already be an object if the model is smart enough.
       return output as RenameSongOutput;
     }
-    // Clean the string to ensure it is valid JSON
     const jsonString = output.replace(/```json/g, '').replace(/```/g, '').trim();
-    return JSON.parse(jsonString);
+    try {
+      return JSON.parse(jsonString);
+    } catch (e) {
+      console.error("Failed to parse AI response:", jsonString);
+      throw new Error("AI returned invalid JSON.");
+    }
   }
 );

@@ -1,5 +1,5 @@
 import MusicPlayer from '@/app/components/music-player';
-import { Music2 } from 'lucide-react';
+import { Bot } from 'lucide-react';
 
 export default async function Home() {
   
@@ -9,11 +9,11 @@ export default async function Home() {
         <div className="w-full max-w-2xl mx-auto">
           <header className="flex items-center gap-4 mb-8">
             <div className="p-3 bg-primary/10 rounded-lg">
-              <Music2 className="w-8 h-8 text-primary"/>
+              <Bot className="w-8 h-8 text-primary"/>
             </div>
             <div>
-              <h1 className="text-3xl sm:text-4xl font-bold font-headline tracking-tight">AI MP3 Renamer</h1>
-              <p className="text-muted-foreground">Let AI rename your MP3 files automatically.</p>
+              <h1 className="text-3xl sm:text-4xl font-bold font-headline tracking-tight">AI Bulk File Renamer</h1>
+              <p className="text-muted-foreground">Let AI rename your files based on your instructions.</p>
             </div>
           </header>
           <MusicPlayer />
