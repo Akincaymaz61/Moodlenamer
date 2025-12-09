@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Folder, Music, Upload, Bot, Loader2, Sparkles } from 'lucide-react';
+import { Folder, Music, Upload, Bot, Loader2, Sparkles, Check, X } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { generateNewSongNames } from '@/lib/actions';
 
@@ -32,7 +32,8 @@ export default function MusicPlayer() {
   const { toast } = useToast();
   const [files, setFiles] = useState<SongFile[]>([]);
   const [prompt, setPrompt] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(null);
 
   const selectedFilesCount = useMemo(() => files.filter(f => f.selected).length, [files]);
@@ -59,7 +60,7 @@ export default function MusicPlayer() {
         }
       }
       
-      setIsLoading(true);
+      setIsLoadingFiles(true);
       const fileList: SongFile[] = [];
       for await (const entry of handle.values()) {
         if (entry.kind === 'file' && (entry.name.endsWith('.mp3') || entry.name.endsWith('.wav') || entry.name.endsWith('.flac') || entry.name.endsWith('.ogg'))) {
@@ -67,18 +68,22 @@ export default function MusicPlayer() {
             id: entry.name,
             name: entry.name,
             handle: entry,
-            selected: false,
+            selected: true, // Select all by default
             status: 'idle',
           });
         }
       }
       setFiles(fileList);
-      setIsLoading(false);
-      toast({ title: "Folder selected", description: `${fileList.length} audio files found.` });
+      setIsLoadingFiles(false);
+      if(fileList.length > 0) {
+        toast({ title: "Folder Selected", description: `${fileList.length} audio files found and selected.` });
+      } else {
+        toast({ variant: 'destructive', title: "No Audio Files Found", description: 'The selected folder does not contain any supported audio files.' });
+      }
     } catch (err) {
       // User may have cancelled the picker
       console.error(err);
-      setIsLoading(false);
+      setIsLoadingFiles(false);
     }
   };
 
@@ -99,7 +104,7 @@ export default function MusicPlayer() {
     }
     if (!dirHandle) return;
 
-    setIsLoading(true);
+    setIsRenaming(true);
     setFiles(prev => prev.map(f => f.selected ? { ...f, status: 'renaming' } : f));
     
     try {
@@ -113,6 +118,7 @@ export default function MusicPlayer() {
       }
       
       const newNames = result.songs;
+      let successCount = 0;
 
       for (let i = 0; i < selectedFiles.length; i++) {
         const fileToRename = selectedFiles[i];
@@ -121,13 +127,12 @@ export default function MusicPlayer() {
         const newFileName = `${suggestion.artist} - ${suggestion.title}.${extension}`;
 
         try {
-          // The move method is now part of the standard, but it's for moving within the same directory.
-          // To rename, you can "move" it to a new name in the same directory.
           await (fileToRename.handle as any).move(newFileName);
+          successCount++;
           
           setFiles(prev => prev.map(f => 
             f.id === fileToRename.id 
-            ? { ...f, status: 'renamed', newName: newFileName } 
+            ? { ...f, status: 'renamed', name: newFileName, newName: newFileName, handle: { ...f.handle, name: newFileName } }
             : f
           ));
 
@@ -140,7 +145,7 @@ export default function MusicPlayer() {
           ));
         }
       }
-      toast({ title: 'Renaming Complete!', description: `${selectedFiles.length} files processed.` });
+      toast({ title: 'Renaming Complete!', description: `${successCount} of ${selectedFiles.length} files processed.` });
 
     } catch (error: any) {
       console.error("Error during rename process:", error);
@@ -149,44 +154,51 @@ export default function MusicPlayer() {
         title: "Operation Failed",
         description: error.message || "An unexpected error occurred.",
       });
-      setFiles(prev => prev.map(f => f.status === 'renaming' ? { ...f, status: 'error', error: error.message } : f));
+      setFiles(prev => prev.map(f => f.status === 'renaming' ? { ...f, status: 'error', error: 'AI request failed' } : f));
     } finally {
-      setIsLoading(false);
+      setIsRenaming(false);
     }
   };
 
   return (
     <Card className="w-full border-2 border-primary/20 shadow-xl shadow-primary/10 bg-card overflow-hidden">
       <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2"><Bot className="w-6 h-6 text-primary"/> AI File Renamer</CardTitle>
-        <CardDescription>Select a folder and let AI rename your audio files based on your instructions.</CardDescription>
+        <CardDescription>Select a local folder to start renaming your audio files.</CardDescription>
       </CardHeader>
       
       <CardContent>
-        <div className="flex items-center gap-2 mb-4">
-            <Button onClick={handleSelectFolder} className="w-full" disabled={isLoading}>
-                {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <Folder className="mr-2" />}
+        <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
+            <Button onClick={handleSelectFolder} className="w-full sm:w-auto" disabled={isRenaming || isLoadingFiles}>
+                {isLoadingFiles ? <Loader2 className="mr-2 animate-spin" /> : <Folder className="mr-2" />}
                 {dirHandle ? `Folder: ${dirHandle.name}` : 'Select Folder'}
             </Button>
+            {files.length > 0 && (
+                <div className="text-sm text-muted-foreground w-full text-center sm:text-left">
+                    Found {files.length} audio files.
+                </div>
+            )}
         </div>
         
         {files.length > 0 && (
           <>
-            <div className='mb-4 space-y-2'>
+            <div className='mb-4 space-y-3 p-4 rounded-lg bg-background/50 border'>
+              <label htmlFor="prompt-textarea" className="font-semibold text-sm">Renaming Instructions</label>
               <Textarea 
+                id="prompt-textarea"
                 placeholder="e.g., 'Rename these as 90s alternative rock songs'"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
-                className="bg-background/50"
+                className="bg-background/80 focus:bg-background"
+                rows={3}
               />
-              <Button onClick={handleRename} className="w-full" disabled={isLoading || selectedFilesCount === 0}>
-                {isLoading ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2"/>}
+              <Button onClick={handleRename} className="w-full" disabled={isRenaming || selectedFilesCount === 0}>
+                {isRenaming ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2"/>}
                 Rename {selectedFilesCount} Selected Files
               </Button>
             </div>
             
             <div className="flex justify-between items-center px-1 py-2 border-b">
-                <h3 className="font-semibold text-sm">Found {files.length} audio files</h3>
+                <h3 className="font-semibold text-sm">Files to Rename</h3>
                 <Button variant="link" size="sm" onClick={toggleSelectAll}>
                     {files.every(f => f.selected) ? 'Deselect All' : 'Select All'}
                 </Button>
@@ -195,10 +207,11 @@ export default function MusicPlayer() {
         )}
 
         <ScrollArea className="h-[40vh] pt-2">
-          {isLoading && files.length === 0 ? (
+          {isLoadingFiles ? (
             <div className="flex flex-col items-center justify-center h-[35vh] text-center p-8 text-muted-foreground">
-              <Loader2 className="w-12 h-12 mb-4 text-primary/30 animate-spin" />
+              <Loader2 className="w-12 h-12 mb-4 text-primary/50 animate-spin" />
               <p className="font-semibold">Loading files from folder...</p>
+              <p className='text-sm'>Please wait.</p>
             </div>
           ) : files.length > 0 ? (
             <div className="p-1 space-y-1">
@@ -211,10 +224,10 @@ export default function MusicPlayer() {
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-[35vh] text-center p-8 text-muted-foreground">
+            <div className="flex flex-col items-center justify-center h-[35vh] text-center p-8 text-muted-foreground border-2 border-dashed rounded-lg">
               <Music className="w-12 h-12 mb-4 text-primary/30" />
-              <p className="font-semibold">No folder selected.</p>
-              <p className="text-sm">Click the button above to get started.</p>
+              <p className="font-semibold text-lg">No folder selected</p>
+              <p className="text-sm max-w-xs mx-auto">Click the &quot;Select Folder&quot; button to choose a directory with your audio files to get started.</p>
             </div>
           )}
         </ScrollArea>

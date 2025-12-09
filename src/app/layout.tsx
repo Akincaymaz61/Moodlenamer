@@ -1,10 +1,13 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import { Inter } from 'next/font/google';
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Groove Illusion',
-  description: 'A mock music player that generates and displays realistic-looking but fake song and artist names.',
+  title: 'AI Bulk File Renamer',
+  description: 'Rename your audio files in bulk with the power of AI.',
 };
 
 export default function RootLayout({
@@ -14,12 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
-      </head>
-      <body className="font-body antialiased">
+      <body className={`${inter.className} antialiased`}>
         {children}
         <Toaster />
       </body>
