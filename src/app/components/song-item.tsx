@@ -3,15 +3,14 @@
 import Image from 'next/image';
 import { memo } from 'react';
 import { Loader2, Music, FileCheck2 } from 'lucide-react';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 type Song = {
   title: string;
   artist: string;
   originalFileName: string;
-  status: 'renaming' | 'renamed' | 'error' | 'idle';
+  status: 'renaming' | 'renamed' | 'error';
   newFullName?: string;
 };
 
@@ -19,11 +18,10 @@ type SongItemProps = {
   song: Song;
 };
 
-const albumArt = PlaceHolderImages.find(img => img.id === 'album-art');
-
 const SongItem = memo(function SongItem({ song }: SongItemProps) {
   const isBusy = song.status === 'renaming';
   const isRenamed = song.status === 'renamed';
+  const albumArt = PlaceHolderImages.find(img => img.id === 'album-art');
 
   return (
     <div className={`flex items-center gap-4 p-2 rounded-lg transition-colors ${isBusy ? 'opacity-50 cursor-not-allowed' : 'hover:bg-secondary/50'}`}>
@@ -50,7 +48,7 @@ const SongItem = memo(function SongItem({ song }: SongItemProps) {
         {isBusy ? (
           <>
             <p className="font-semibold truncate text-muted-foreground italic">{song.title}</p>
-            <p className="text-sm truncate text-muted-foreground italic">{song.originalFileName}</p>
+            <p className="text-sm truncate text-muted-foreground">{song.originalFileName}</p>
           </>
         ) : (
           <>
