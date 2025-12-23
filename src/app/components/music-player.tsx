@@ -26,6 +26,13 @@ declare global {
   interface Window {
     showDirectoryPicker: () => Promise<FileSystemDirectoryHandle>;
   }
+  interface FileSystemDirectoryHandle {
+    values: () => AsyncIterable<FileSystemFileHandle | FileSystemDirectoryHandle>;
+  }
+  interface FileSystemFileHandle {
+    createWritable: () => Promise<FileSystemWritableFileStream>;
+    getFile: () => Promise<File>;
+  }
 }
 
 export default function MusicPlayer() {
@@ -52,7 +59,6 @@ export default function MusicPlayer() {
       const handle = await window.showDirectoryPicker();
       setDirHandle(handle);
 
-      // Verify permission
       if (await handle.queryPermission({ mode: 'readwrite' }) !== 'granted') {
         if (await handle.requestPermission({ mode: 'readwrite' }) !== 'granted') {
           toast({ variant: 'destructive', title: 'Permission Denied', description: 'Cannot read/write to the selected folder.'});
@@ -68,7 +74,7 @@ export default function MusicPlayer() {
             id: entry.name,
             name: entry.name,
             handle: entry,
-            selected: true, // Select all by default
+            selected: true,
             status: 'idle',
           });
         }
@@ -81,8 +87,9 @@ export default function MusicPlayer() {
         toast({ variant: 'destructive', title: "No Audio Files Found", description: 'The selected folder does not contain any supported audio files.' });
       }
     } catch (err) {
-      // User may have cancelled the picker
-      console.error(err);
+      if ((err as Error).name !== 'AbortError') {
+        console.error(err);
+      }
       setIsLoadingFiles(false);
     }
   };
@@ -122,22 +129,34 @@ export default function MusicPlayer() {
 
       for (let i = 0; i < selectedFiles.length; i++) {
         const fileToRename = selectedFiles[i];
-        const suggestion = newNames[i];
-        const extension = fileToRename.name.split('.').pop();
-        const newFileName = `${suggestion.artist} - ${suggestion.title}.${extension}`;
-
+        const originalHandle = fileToRename.handle;
+        const originalName = fileToRename.name;
+        
         try {
-          await (fileToRename.handle as any).move(newFileName);
+          const suggestion = newNames[i];
+          const extension = originalName.split('.').pop();
+          const newFileName = `${suggestion.artist} - ${suggestion.title}.${extension}`;
+
+          // Create new file, write content, then remove old file
+          const newFileHandle = await dirHandle.getFileHandle(newFileName, { create: true });
+          const writable = await newFileHandle.createWritable();
+          const originalFile = await originalHandle.getFile();
+          await writable.write(originalFile);
+          await writable.close();
+
+          // After successful write, remove the original file
+          await dirHandle.removeEntry(originalName);
+
           successCount++;
           
           setFiles(prev => prev.map(f => 
             f.id === fileToRename.id 
-            ? { ...f, status: 'renamed', name: newFileName, newName: newFileName, handle: { ...f.handle, name: newFileName } }
+            ? { ...f, status: 'renamed', name: newFileName, id: newFileName, newName: newFileName, handle: newFileHandle }
             : f
           ));
 
         } catch (renameError: any) {
-          console.error(`Failed to rename ${fileToRename.name}:`, renameError);
+          console.error(`Failed to rename ${originalName}:`, renameError);
           setFiles(prev => prev.map(f => 
             f.id === fileToRename.id 
             ? { ...f, status: 'error', error: renameError.message } 
@@ -161,76 +180,89 @@ export default function MusicPlayer() {
   };
 
   return (
-    <Card className="w-full border-2 border-primary/20 shadow-xl shadow-primary/10 bg-card overflow-hidden">
-      <CardHeader className="pb-4">
-        <CardDescription>Select a local folder to start renaming your audio files.</CardDescription>
+    <Card className="w-full max-w-3xl border-primary/20 bg-card shadow-xl shadow-primary/10">
+       <CardHeader className="border-b border-border/50 p-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary/10 rounded-lg border border-primary/20">
+            <Bot className="w-6 h-6 text-primary"/>
+          </div>
+          <div>
+            <CardTitle className="text-xl">AI Bulk File Renamer</CardTitle>
+            <CardDescription className="mt-1">Let AI creatively rename your audio files in bulk.</CardDescription>
+          </div>
+        </div>
       </CardHeader>
       
-      <CardContent>
-        <div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
+      <CardContent className="p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row items-center gap-4 mb-6 p-4 rounded-lg bg-background/50 border">
             <Button onClick={handleSelectFolder} className="w-full sm:w-auto" disabled={isRenaming || isLoadingFiles}>
-                {isLoadingFiles ? <Loader2 className="mr-2 animate-spin" /> : <Folder className="mr-2" />}
+                {isLoadingFiles ? <Loader2 className="animate-spin" /> : <Folder />}
                 {dirHandle ? `Folder: ${dirHandle.name}` : 'Select Folder'}
             </Button>
             {files.length > 0 && (
                 <div className="text-sm text-muted-foreground w-full text-center sm:text-left">
-                    Found {files.length} audio files.
+                    Found {files.length} audio files. Select the ones you want to rename.
                 </div>
             )}
         </div>
         
         {files.length > 0 && (
           <>
-            <div className='mb-4 space-y-3 p-4 rounded-lg bg-background/50 border'>
-              <label htmlFor="prompt-textarea" className="font-semibold text-sm">Renaming Instructions</label>
+            <div className='mb-6 space-y-3 p-4 rounded-lg bg-background/50 border'>
+              <label htmlFor="prompt-textarea" className="font-semibold text-sm flex items-center gap-2">
+                <Sparkles className="text-primary w-4 h-4"/>
+                Renaming Instructions
+              </label>
               <Textarea 
                 id="prompt-textarea"
-                placeholder="e.g., 'Rename these as 90s alternative rock songs'"
+                placeholder="e.g., 'Rename these as 90s alternative rock songs', or 'Suggest names for dreamy synthwave tracks'"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 className="bg-background/80 focus:bg-background"
-                rows={3}
+                rows={2}
               />
               <Button onClick={handleRename} className="w-full" disabled={isRenaming || selectedFilesCount === 0}>
-                {isRenaming ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2"/>}
+                {isRenaming ? <Loader2 className="animate-spin" /> : <Sparkles />}
                 Rename {selectedFilesCount} Selected Files
               </Button>
             </div>
             
-            <div className="flex justify-between items-center px-1 py-2 border-b">
+            <div className="flex justify-between items-center px-2 py-2 border-b border-t">
                 <h3 className="font-semibold text-sm">Files to Rename</h3>
                 <Button variant="link" size="sm" onClick={toggleSelectAll}>
-                    {files.every(f => f.selected) ? 'Deselect All' : 'Select All'}
+                    {files.length > 0 && files.every(f => f.selected) ? 'Deselect All' : 'Select All'}
                 </Button>
             </div>
+
+            <ScrollArea className="h-[40vh] pt-2">
+              <div className="p-1 space-y-1">
+                {files.map((file) => (
+                  <SongItem
+                    key={file.id}
+                    file={file}
+                    onSelect={() => toggleFileSelection(file.id)}
+                  />
+                ))}
+              </div>
+            </ScrollArea>
           </>
         )}
 
-        <ScrollArea className="h-[40vh] pt-2">
-          {isLoadingFiles ? (
-            <div className="flex flex-col items-center justify-center h-[35vh] text-center p-8 text-muted-foreground">
-              <Loader2 className="w-12 h-12 mb-4 text-primary/50 animate-spin" />
-              <p className="font-semibold">Loading files from folder...</p>
-              <p className='text-sm'>Please wait.</p>
-            </div>
-          ) : files.length > 0 ? (
-            <div className="p-1 space-y-1">
-              {files.map((file) => (
-                <SongItem
-                  key={file.id}
-                  file={file}
-                  onSelect={() => toggleFileSelection(file.id)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-[35vh] text-center p-8 text-muted-foreground border-2 border-dashed rounded-lg">
-              <Music className="w-12 h-12 mb-4 text-primary/30" />
-              <p className="font-semibold text-lg">No folder selected</p>
-              <p className="text-sm max-w-xs mx-auto">Click the &quot;Select Folder&quot; button to choose a directory with your audio files to get started.</p>
-            </div>
-          )}
-        </ScrollArea>
+        {!isLoadingFiles && files.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-[40vh] text-center p-8 text-muted-foreground border-2 border-dashed rounded-lg">
+            <Music className="w-12 h-12 mb-4 text-primary/30" />
+            <p className="font-semibold text-lg">No folder selected</p>
+            <p className="text-sm max-w-xs mx-auto">Click the &quot;Select Folder&quot; button to choose a directory with your audio files to get started.</p>
+          </div>
+        )}
+
+        {isLoadingFiles && (
+          <div className="flex flex-col items-center justify-center h-[40vh] text-center p-8 text-muted-foreground">
+            <Loader2 className="w-12 h-12 mb-4 text-primary/50 animate-spin" />
+            <p className="font-semibold">Loading files from folder...</p>
+            <p className='text-sm'>Please wait.</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
