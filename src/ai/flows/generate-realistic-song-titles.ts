@@ -41,10 +41,12 @@ const promptTemplate = `You are a music expert, skilled at creating realistic-so
 You will follow this instruction to generate the song titles and artists: "{{prompt}}"
 {{/if}}
 
-Generate {{count}} unique song titles and artist names. Ensure that the titles and names sound believable and could plausibly exist in the modern music landscape.
+Generate {{count}} unique song titles and artist names.
 
-Format the output as a JSON object with a "songs" key, which contains an array of objects, each with a "title" and "artist" field.
-Example: {"songs": [{"title": "Echoes in Rain", "artist": "Neon Drift"}]}`;
+Your response MUST be a valid JSON object and NOTHING ELSE. Do not include any extra text, explanations, or markdown code fences.
+
+The JSON object must have a "songs" key, which contains an array of objects, each with a "title" and "artist" field.
+Example format: {"songs": [{"title": "Echoes in Rain", "artist": "Neon Drift"}]}`;
 
 
 const prompt = ai.definePrompt({
@@ -69,9 +71,9 @@ const generateRealisticSongTitlesFlow = ai.defineFlow(
     const jsonString = output.replace(/```json/g, '').replace(/```/g, '').trim();
     try {
         return JSON.parse(jsonString);
-    } catch (e) {
+    } catch (e: any) {
         console.error("Failed to parse AI response:", jsonString);
-        throw new Error("AI returned invalid JSON.");
+        throw new Error(`AI returned invalid JSON: ${e.message}`);
     }
   }
 );
